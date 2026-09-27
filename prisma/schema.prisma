@@ -1,0 +1,271 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum GlobalRole {
+  SUPER_ADMIN
+  USER
+}
+
+enum EventRole {
+  ADMIN_PANITIA
+  PANITIA_DP
+  JURI
+  PESERTA
+}
+
+enum EventStatus {
+  DRAFT_SETUP
+  REGISTRATION_OPEN
+  VALIDATION
+  TECHNICAL_MEETING
+  SCHEDULING
+  LIVE
+  SCORING_REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum RegStatus {
+  DRAFT
+  SUBMITTED
+  REVISION_REQUIRED
+  VALIDATED
+  SCHEDULED
+  SCORED
+  FEEDBACK_GENERATED
+  FINALIZED
+}
+
+enum DPStatus {
+  NOT_STARTED
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+}
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  fullName     String
+  phone        String?
+  globalRole   GlobalRole  @default(USER)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  userEvents   UserEvent[]
+  participants Participant[]
+  submissions  ScoreSubmission[]
+  feedbacks    ParticipantFeedback[]
+  auditLogs    AuditLog[]
+}
+
+model Event {
+  id               String             @id @default(uuid())
+  name             String
+  slug             String             @unique
+  description      String?
+  eventDate        DateTime
+  location         String?
+  status           EventStatus        @default(DRAFT_SETUP)
+  dpFlowLocked     Boolean            @default(false)
+  scoringLocked    Boolean            @default(false)
+  resultsPublished Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  userEvents       UserEvent[]
+  decisionPoints   DecisionPoint[]
+  criteria         ScoringCriterion[]
+  participants     Participant[]
+  technicalMeeting TechnicalMeeting?
+  auditLogs        AuditLog[]
+}
+
+model UserEvent {
+  id           String         @id @default(uuid())
+  userId       String
+  eventId      String
+  role         EventRole
+  assignedDpId String?
+  isActive     Boolean        @default(true)
+  assignedAt   DateTime       @default(now())
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event        Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignedDp   DecisionPoint? @relation(fields: [assignedDpId], references: [id])
+
+  @@unique([userId, eventId, role])
+}
+
+model DecisionPoint {
+  id            String               @id @default(uuid())
+  eventId       String
+  orderIndex    Int
+  code          String               // DOC_CHECK, PHOTOSHOOT, FINAL_PREP, STAGE_PERFORMANCE
+  name          String
+  capacityLimit Int                  @default(1) // 1 tim per pos
+  isActive      Boolean              @default(true)
+
+  event         Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  journeys      ParticipantJourney[]
+  assignedStaff UserEvent[]
+
+  @@unique([eventId, orderIndex])
+}
+
+model Participant {
+  id                 String                @id @default(uuid())
+  eventId            String
+  userId             String
+  teamName           String
+  schoolName         String
+  category           String
+  registrationNumber String?
+  queueNumber        Int?
+  performanceTime    DateTime?
+  status             RegStatus             @default(DRAFT)
+  revisionNotes      String?
+  totalScore         Float?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  event              Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members            ParticipantMember[]
+  documents          ParticipantDocument[]
+  journeys           ParticipantJourney[]
+  scores             ScoreSubmission[]
+  feedbacks          ParticipantFeedback[]
+
+  @@unique([eventId, registrationNumber])
+  @@unique([eventId, queueNumber])
+}
+
+model ParticipantMember {
+  id            String      @id @default(uuid())
+  participantId String
+  fullName      String
+  roleInTeam    String      // DANTON, PASUKAN, OFFICIAL
+  nisn          String?
+  phone         String?
+
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+}
+
+model ParticipantDocument {
+  id            String      @id @default(uuid())
+  participantId String
+  docType       String      // SURAT_TUGAS, BUKTI_TRANSFER, FOTO_PASUKAN
+  fileUrl       String
+  storagePath   String
+  status        String      @default("PENDING") // PENDING, APPROVED, REJECTED
+  rejectionNote String?
+  uploadedAt    DateTime    @default(now())
+
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+}
+
+model ParticipantJourney {
+  id            String        @id @default(uuid())
+  participantId String
+  dpId          String
+  status        DPStatus      @default(WAITING)
+  enteredAt     DateTime      @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+  blockReason   String?
+
+  participant   Participant   @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  decisionPoint DecisionPoint @relation(fields: [dpId], references: [id], onDelete: Cascade)
+}
+
+model ScoringCriterion {
+  id           String            @id @default(uuid())
+  eventId      String
+  name         String            // Contoh: Langkah Tegap, Variasi Formasi
+  orderIndex   Int
+  minScore     Float
+  maxScore     Float
+  intervalStep Float
+  weight       Float             @default(1.0)
+  isActive     Boolean           @default(true)
+
+  event        Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  options      ScoreOption[]
+  submissions  ScoreSubmission[]
+
+  @@unique([eventId, orderIndex])
+}
+
+model ScoreOption {
+  id          String           @id @default(uuid())
+  criterionId String
+  scoreValue  Float
+  isCustom    Boolean          @default(false)
+
+  criterion   ScoringCriterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+}
+
+model ScoreSubmission {
+  id            String           @id @default(uuid())
+  participantId String
+  judgeId       String
+  criterionId   String
+  scoreValue    Float
+  createdAt     DateTime         @default(now())
+
+  participant   Participant      @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  judge         User             @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+  criterion     ScoringCriterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+
+  @@unique([participantId, judgeId, criterionId])
+}
+
+model ParticipantFeedback {
+  id              String      @id @default(uuid())
+  participantId   String
+  judgeId         String
+  audioStorageUrl String?
+  rawTranscript   String?
+  refinedText     String?
+  status          String      @default("DRAFT_AI") // DRAFT_AI, APPROVED, COUNTDOWN, SENT
+  sentAt          DateTime?
+  createdAt       DateTime    @default(now())
+
+  participant     Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  judge           User        @relation(fields: [judgeId], references: [id], onDelete: Cascade)
+}
+
+model TechnicalMeeting {
+  id          String    @id @default(uuid())
+  eventId     String    @unique
+  meetingDate DateTime?
+  zoomUrl     String?
+  notulenUrl  String?
+  isPublished Boolean   @default(false)
+
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  eventId   String?
+  userId    String?
+  action    String
+  resource  String
+  payload   String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+  event     Event?   @relation(fields: [eventId], references: [id])
+}
