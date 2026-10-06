@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { findUserById } from '@/lib/data-service';
 import { verifyJwtToken, resolveUserNavigation } from '@/lib/auth';
 
 export async function GET(request) {
@@ -25,18 +25,7 @@ export async function GET(request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      include: {
-        userEvents: {
-          where: { isActive: true },
-          include: {
-            event: true,
-            assignedDp: true,
-          },
-        },
-      },
-    });
+    const user = await findUserById(decoded.userId);
 
     if (!user || !user.isActive) {
       return NextResponse.json(

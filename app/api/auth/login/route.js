@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { findUserByEmail } from '@/lib/data-service';
 import { comparePassword, signJwtToken, resolveUserNavigation } from '@/lib/auth';
 
 export async function POST(request) {
@@ -14,18 +14,7 @@ export async function POST(request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
-      include: {
-        userEvents: {
-          where: { isActive: true },
-          include: {
-            event: true,
-            assignedDp: true,
-          },
-        },
-      },
-    });
+    const user = await findUserByEmail(email);
 
     if (!user) {
       return NextResponse.json(
