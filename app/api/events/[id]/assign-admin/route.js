@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import { assignAdminToEvent } from '@/lib/data-service';
+import { requireSuperAdmin } from '@/lib/auth';
 
 export async function POST(request, { params }) {
+  // STRICT PROTEKSI ROLE: Hanya Super Admin yang berhak menugaskan Admin Panitia
+  const authCheck = await requireSuperAdmin(request);
+  if (!authCheck.authorized) {
+    return authCheck.response;
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -15,11 +22,15 @@ export async function POST(request, { params }) {
     }
 
     const displayName = username || fullName || email.split('@')[0];
-    const result = await assignAdminToEvent(id, {
-      email,
-      fullName: displayName,
-      password,
-    });
+    const result = await assignAdminToEvent(
+      id,
+      {
+        email,
+        fullName: displayName,
+        password,
+      },
+      authCheck.user.userId
+    );
 
     return NextResponse.json({
       success: true,
