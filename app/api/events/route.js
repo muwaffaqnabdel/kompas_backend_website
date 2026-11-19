@@ -1,9 +1,26 @@
 import { NextResponse } from 'next/server';
 import { getEventsList, createNewEvent } from '@/lib/data-service';
+import { requireSuperAdmin } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const events = await getEventsList();
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+    const search = searchParams.get('q');
+
+    let events = await getEventsList();
+
+    if (status && status !== 'ALL') {
+      events = events.filter((e) => e.status === status);
+    }
+
+    if (search) {
+      const q = search.toLowerCase();
+      events = events.filter(
+        (e) => e.name?.toLowerCase().includes(q) || e.location?.toLowerCase().includes(q)
+      );
+    }
+
     return NextResponse.json({
       success: true,
       events,
@@ -18,27 +35,37 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  // STRICT PROTEKSI ROLE: Hanya Super Admin yang berhak mendaftarkan event baru
+  const authCheck = await requireSuperAdmin(request);
+  if (!authCheck.authorized) {
+    return authCheck.response;
+  }
+
   try {
     const body = await request.json();
-    const { name, location, eventDate, description } = body;
+    const { name, location, eventDate, description, status } = body;
 
-    if (!name) {
+    if (!name || name.trim().length < 3) {
       return NextResponse.json(
-        { success: false, message: 'Nama event wajib diisi.' },
+        { success: false, message: 'Nama event wajib diisi (minimal 3 karakter).' },
         { status: 400 }
       );
     }
 
-    const newEvent = await createNewEvent({
-      name,
-      location,
-      eventDate,
-      description,
-    });
+    const newEvent = await createNewEvent(
+      {
+        name: name.trim(),
+        location: location?.trim() || 'Gelanggang Olahraga',
+        eventDate: eventDate || new Date(),
+        description: description?.trim() || '',
+        status: status || 'DRAFT_SETUP',
+      },
+      authCheck.user.userId
+    );
 
     return NextResponse.json({
       success: true,
-      message: 'Event berhasil didaftarkan.',
+      message: `Event "${newEvent.name}" berhasil didaftarkan secara resmi.`,
       event: newEvent,
     });
   } catch (error) {

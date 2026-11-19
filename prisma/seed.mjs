@@ -23,7 +23,7 @@ async function main() {
   });
   console.log(`[SEED] Super Admin siap: ${superAdmin.email}`);
 
-  // 2. Buat Event LKBB Nasional 2026
+  // 2. Buat Event 1: LKBB Nasional 2026 (Status: REGISTRATION_OPEN)
   const event = await prisma.event.upsert({
     where: { slug: 'lkbb-nasional-2026' },
     update: {},
@@ -38,9 +38,26 @@ async function main() {
       scoringLocked: false,
     },
   });
-  console.log(`[SEED] Event siap: ${event.name}`);
+  console.log(`[SEED] Event 1 siap: ${event.name}`);
 
-  // 3. Buat 4 Decision Points Standar (PRD Addendum 1.2)
+  // 2b. Buat Event 2: Piala Walikota Paskibra 2026 (Status: DRAFT_SETUP)
+  const event2 = await prisma.event.upsert({
+    where: { slug: 'piala-walikota-2026' },
+    update: {},
+    create: {
+      name: 'Piala Walikota Paskibra 2026',
+      slug: 'piala-walikota-2026',
+      description: 'Kompetisi Baris Berbaris & Variasi Formasi Pelajar Tingkat Kota Bekasi.',
+      eventDate: new Date('2026-12-28T08:00:00Z'),
+      location: 'Stadion Patriot, Bekasi',
+      status: 'DRAFT_SETUP',
+      dpFlowLocked: false,
+      scoringLocked: false,
+    },
+  });
+  console.log(`[SEED] Event 2 siap: ${event2.name}`);
+
+  // 3. Buat 4 Decision Points Standar untuk Event 1 & Event 2
   const dps = [
     { orderIndex: 1, code: 'DOC_CHECK', name: 'DP 1 - Pengecekan Dokumen & Berkas', capacityLimit: 1, isFinal: false },
     { orderIndex: 2, code: 'PHOTOSHOOT', name: 'DP 2 - Photoshoot Resmi Pasukan', capacityLimit: 1, isFinal: false },
@@ -67,8 +84,24 @@ async function main() {
     } else {
       createdDPs.push(existing);
     }
+
+    // Untuk Event 2
+    const existing2 = await prisma.decisionPoint.findFirst({
+      where: { eventId: event2.id, orderIndex: dp.orderIndex },
+    });
+    if (!existing2) {
+      await prisma.decisionPoint.create({
+        data: {
+          eventId: event2.id,
+          orderIndex: dp.orderIndex,
+          code: dp.code,
+          name: dp.name,
+          capacityLimit: dp.capacityLimit,
+        },
+      });
+    }
   }
-  console.log(`[SEED] 4 Pos DP Standar siap.`);
+  console.log(`[SEED] 4 Pos DP Standar siap untuk kedua event.`);
 
   // 4. Buat Akun Admin Panitia & Assign ke Event
   const adminPanitia = await prisma.user.upsert({
