@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getAdminPanitiaList } from '@/lib/data-service';
 import { requireSuperAdmin } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request) {
   // STRICT PROTEKSI ROLE: Hanya Super Admin yang berhak melihat daftar akun Admin Panitia
   const authCheck = await requireSuperAdmin(request);

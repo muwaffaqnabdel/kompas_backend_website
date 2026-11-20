@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getEventBySlugOrId, updateEvent, deleteEvent } from '@/lib/data-service';
 import { requireSuperAdmin } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const VALID_EVENT_STATUSES = [
   'DRAFT_SETUP',
   'REGISTRATION_OPEN',
