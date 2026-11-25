@@ -94,17 +94,20 @@ model Event {
 }
 
 model UserEvent {
-  id           String         @id @default(uuid())
-  userId       String
-  eventId      String
-  role         EventRole
-  assignedDpId String?
-  isActive     Boolean        @default(true)
-  assignedAt   DateTime       @default(now())
+  id               String         @id @default(uuid())
+  userId           String
+  eventId          String
+  role             EventRole
+  assignedDpId     String?
+  judgeRole        String?
+  judgeInstitution String?
+  judgeSpecialties String?        // JSON array kategori penilaian, misal ["PBB","DANTON"]
+  isActive         Boolean        @default(true)
+  assignedAt       DateTime       @default(now())
 
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  event        Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  assignedDp   DecisionPoint? @relation(fields: [assignedDpId], references: [id])
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event            Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  assignedDp       DecisionPoint? @relation(fields: [assignedDpId], references: [id])
 
   @@unique([userId, eventId, role])
 }
@@ -195,6 +198,8 @@ model ScoringCriterion {
   id           String            @id @default(uuid())
   eventId      String
   name         String            // Contoh: Langkah Tegap, Variasi Formasi
+  category     String            @default("PBB") // PBB, VARIASI & FORMASI, DANTON, MAKE UP / KOSTUM
+  description  String?
   orderIndex   Int
   minScore     Float
   maxScore     Float

@@ -45,6 +45,14 @@ export async function POST(request) {
       );
     }
 
+    const cleanPin = String(pin || '').trim();
+    if (!/^\d{4}$/.test(cleanPin)) {
+      return NextResponse.json(
+        { success: false, message: 'PIN Akses Tablet Dewan Juri wajib terdiri dari tepat 4 digit angka.' },
+        { status: 400 }
+      );
+    }
+
     const authCheck = await requireAdminPanitia(request, eventId);
     if (!authCheck.authorized) {
       return authCheck.response;
@@ -57,7 +65,7 @@ export async function POST(request) {
       category,
       specialties,
       institution,
-      pin,
+      pin: cleanPin,
       email,
       status: status || 'AKTIF',
     });

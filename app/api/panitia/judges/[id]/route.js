@@ -15,6 +15,17 @@ export async function PATCH(request, { params }) {
       return authCheck.response;
     }
 
+    if (body.pin !== undefined) {
+      const cleanPin = String(body.pin || '').trim();
+      if (!/^\d{4}$/.test(cleanPin)) {
+        return NextResponse.json(
+          { success: false, message: 'PIN Akses Tablet Dewan Juri wajib terdiri dari tepat 4 digit angka.' },
+          { status: 400 }
+        );
+      }
+      body.pin = cleanPin;
+    }
+
     const updated = await updateJudge(id, body);
 
     return NextResponse.json({
