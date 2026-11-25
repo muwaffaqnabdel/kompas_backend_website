@@ -55,6 +55,7 @@ export async function GET(request) {
             ? {
                 id: ue.assignedDp.id,
                 name: ue.assignedDp.name,
+                code: ue.assignedDp.code,
                 orderIndex: ue.assignedDp.orderIndex,
               }
             : null,
