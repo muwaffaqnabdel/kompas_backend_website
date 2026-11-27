@@ -1,25 +1,47 @@
 import { NextResponse } from 'next/server';
 import { submitJuriScore } from '@/lib/data-service';
+import { requireJuri } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { eventId, participantId, juriId, scores, penaltySeconds } = body;
+    const { eventId, participantId, scores, penaltySeconds } = body;
 
-    if (!participantId || !scores) {
+    if (!participantId || !scores || typeof scores !== 'object') {
       return NextResponse.json(
         { success: false, message: 'participantId dan data scores wajib disertakan.' },
         { status: 400 }
       );
     }
 
+    const authCheck = await requireJuri(request, eventId || null);
+    if (!authCheck.authorized) {
+      return authCheck.response;
+    }
+
     const result = await submitJuriScore({
-      eventId,
+      eventId: authCheck.targetEventId || eventId,
       participantId,
-      juriId: juriId || 'usr-juri1',
+      juriId: authCheck.user.userId,
       scores,
       penaltySeconds: Number(penaltySeconds) || 0,
+      // Juri tidak boleh menimpa nilai setelah submit; hanya Super Admin (atau endpoint khusus Admin Panitia)
+      allowOverwrite: Boolean(authCheck.isSuperAdmin),
     });
+
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          locked: Boolean(result.locked),
+          message: result.message,
+        },
+        { status: result.status || 400 }
+      );
+    }
 
     return NextResponse.json({
       success: true,

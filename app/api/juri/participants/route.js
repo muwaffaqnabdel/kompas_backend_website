@@ -29,6 +29,8 @@ export async function GET(request) {
       categories: data.categories,
       total: data.total,
       totalAll: data.totalAll,
+      dp4ScoringOpen: Boolean(data.dp4ScoringOpen),
+      dp4ActiveParticipantId: data.dp4ActiveParticipantId || null,
       participants: data.participants,
     });
   } catch (error) {
