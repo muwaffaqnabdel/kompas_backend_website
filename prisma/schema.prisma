@@ -62,11 +62,12 @@ model User {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  userEvents   UserEvent[]
-  participants Participant[]
-  submissions  ScoreSubmission[]
-  feedbacks    ParticipantFeedback[]
-  auditLogs    AuditLog[]
+  userEvents        UserEvent[]
+  participants      Participant[]
+  submissions       ScoreSubmission[]
+  feedbacks         ParticipantFeedback[]
+  auditLogs         AuditLog[]
+  contingentProfile ContingentProfile?
 }
 
 model Event {
@@ -157,20 +158,59 @@ model Participant {
 }
 
 model ParticipantMember {
-  id            String      @id @default(uuid())
-  participantId String
-  fullName      String
-  roleInTeam    String      // DANTON, PASUKAN, OFFICIAL
-  nisn          String?
-  phone         String?
+  id             String      @id @default(uuid())
+  participantId  String
+  sourceMemberId String?
+  fullName       String
+  roleInTeam     String      // DANTON, PASUKAN, CADANGAN, OFFICIAL
+  ttl            String?
+  nisn           String?
+  phone          String?
+  photoUrl       String?
 
-  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  participant    Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+}
+
+model ContingentProfile {
+  id              String             @id @default(uuid())
+  userId          String             @unique
+  schoolName      String
+  defaultTeamName String?
+  category        String             @default("SMA/SMK/MA")
+  coachName       String?
+  officialPhone   String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members         ContingentMember[]
+}
+
+model ContingentMember {
+  id               String            @id @default(uuid())
+  profileId        String
+  fullName         String
+  ttl              String?
+  nisn             String?
+  defaultRole      String            @default("PASUKAN") // DANTON, PASUKAN, CADANGAN, OFFICIAL
+  photoUrl         String?
+  photoStoragePath String?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  profile          ContingentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 model ParticipantDocument {
   id            String      @id @default(uuid())
   participantId String
-  docType       String      // SURAT_TUGAS, BUKTI_TRANSFER, FOTO_PASUKAN
+  requirementId String?
+  docType       String      // SURAT_TUGAS, BUKTI_TRANSFER, FOTO_PASUKAN, atau title requirement
+  fileName      String?
+  fileSize      String?
   fileUrl       String
   storagePath   String
   status        String      @default("PENDING") // PENDING, APPROVED, REJECTED
