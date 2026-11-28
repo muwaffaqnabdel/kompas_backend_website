@@ -7,19 +7,36 @@ export const revalidate = 0;
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const eventId = searchParams.get('eventId') || 'evt-lkbb-2026';
+    const eventId = searchParams.get('eventId') || '';
+
+    if (!eventId) {
+      return NextResponse.json({
+        success: true,
+        exists: false,
+        eventId: null,
+        meetingInfo: null,
+        documents: [],
+        summaryNotes: '',
+      });
+    }
 
     const tmData = await getTechnicalMeetingData(eventId);
+    const isPublished = Boolean(tmData.exists && tmData.meetingInfo?.isPublished !== false);
 
-    // Filter only published documents for participants
-    const publishedDocs = (tmData.documents || []).filter((d) => d.isPublished !== false);
+    // Hanya tampilkan dokumen & info TM jika sudah diatur dan dipublikasikan oleh Admin Panitia
+    const publishedDocs = isPublished
+      ? (tmData.documents || []).filter((d) => d.isPublished !== false)
+      : [];
 
     return NextResponse.json({
       success: true,
+      exists: Boolean(tmData.exists),
+      isPublished,
       eventId: tmData.eventId,
-      meetingInfo: tmData.meetingInfo?.isPublished !== false ? tmData.meetingInfo : null,
+      eventName: tmData.eventName || '',
+      meetingInfo: isPublished ? tmData.meetingInfo : null,
       documents: publishedDocs,
-      summaryNotes: tmData.summaryNotes || '',
+      summaryNotes: isPublished ? tmData.summaryNotes || '' : '',
     });
   } catch (error) {
     console.error('[API GET PESERTA TECHNICAL MEETING ERROR]', error);
@@ -29,4 +46,3 @@ export async function GET(request) {
     );
   }
 }
-
